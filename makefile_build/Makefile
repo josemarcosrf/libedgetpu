@@ -22,7 +22,8 @@ LIBEDGETPU_CFLAGS := \
 LIBEDGETPU_CXXFLAGS := \
 	-fPIC \
 	-Wall \
-	-std=c++14 \
+	-std=c++17 \
+	-include cstdint \
 	-DDARWINN_PORT_DEFAULT
 
 LIBEDGETPU_LDFLAGS := \
@@ -32,7 +33,6 @@ LIBEDGETPU_LDFLAGS := \
 	-Wl,--version-script=$(BUILDROOT)/tflite/public/libedgetpu.lds \
 	-fuse-ld=gold \
 	-lflatbuffers \
-	-labsl_flags \
 	-labsl_flags_internal \
 	-labsl_flags_reflection \
 	-labsl_flags_marshalling \
@@ -59,7 +59,7 @@ LIBEDGETPU_INCLUDES := \
 	$(BUILDDIR)/$(BUILDROOT)
 LIBEDGETPU_INCLUDES := $(addprefix -I,$(LIBEDGETPU_INCLUDES))
 
-LIBEDGETPU_CSRCS := $(TFROOT)/tensorflow/lite/c/common.c
+LIBEDGETPU_CSRCS :=
 LIBEDGETPU_COBJS := $(call TOBUILDDIR,$(patsubst %.c,%.o,$(LIBEDGETPU_CSRCS)))
 
 LIBEDGETPU_CCSRCS := \
@@ -140,6 +140,9 @@ LIBEDGETPU_CCSRCS := \
 	$(BUILDROOT)/tflite/edgetpu_c.cc \
 	$(BUILDROOT)/tflite/edgetpu_delegate_for_custom_op.cc \
 	$(BUILDROOT)/tflite/edgetpu_delegate_for_custom_op_tflite_plugin.cc \
+	$(TFROOT)/tensorflow/lite/array.cc \
+	$(TFROOT)/tensorflow/lite/core/c/common.cc \
+	$(TFROOT)/tensorflow/lite/tensorflow_profiler_logger_shim.cc \
 	$(TFROOT)/tensorflow/lite/util.cc
 LIBEDGETPU_CCOBJS := $(call TOBUILDDIR,$(patsubst %.cc,%.o,$(LIBEDGETPU_CCSRCS)))
 
