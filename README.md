@@ -93,6 +93,12 @@ To build the library:
 TFROOT=<Directory of Tensorflow> make -f makefile_build/Makefile -j$(nproc) libedgetpu
 ```
 
+A library built this way links against the system's abseil and flatbuffers, so it only runs on systems with those exact versions. For a portable library, build in a container instead (podman, or `ENGINE=docker`):
+```
+makefile_build/build-static.sh
+```
+It fetches TensorFlow at the commit pinned in `workspace.bzl`, links abseil and flatbuffers statically, and writes `out/direct/k8` (max) and `out/throttled/k8` (std). The result only needs glibc 2.34+, libstdc++ and libusb-1.0.
+
 ## Support
 
 If you have question, comments or requests concerning this library, please

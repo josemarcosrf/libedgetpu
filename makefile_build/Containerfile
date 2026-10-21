@@ -1,0 +1,46 @@
+# Build environment for a portable libedgetpu (used by build-static.sh).
+#
+# abseil and flatbuffers are built from source as static, position-independent
+# archives and linked into libedgetpu, so the library doesn't depend on the
+# host distro's versions of them (those change between Fedora releases).
+# Debian 12's glibc 2.36 is the oldest glibc the result needs.
+FROM docker.io/library/debian:bookworm
+
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        build-essential binutils ca-certificates cmake curl git libusb-1.0-0-dev xxd \
+    && rm -rf /var/lib/apt/lists/*
+
+# The versions libedgetpu has been built and tested against (Fedora 44).
+ARG ABSEIL_VERSION=20260107.1
+ARG FLATBUFFERS_VERSION=25.12.19
+
+RUN git clone --depth 1 -b ${ABSEIL_VERSION} https://github.com/abseil/abseil-cpp /tmp/abseil \
+    && cmake -S /tmp/abseil -B /tmp/abseil/build -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_CXX_STANDARD=17 -DABSL_PROPAGATE_CXX_STD=ON \
+        -DABSL_BUILD_TESTING=OFF -DBUILD_SHARED_LIBS=OFF \
+    && cmake --build /tmp/abseil/build -j"$(nproc)" \
+    && cmake --install /tmp/abseil/build \
+    && rm -rf /tmp/abseil
+
+RUN git clone --depth 1 -b v${FLATBUFFERS_VERSION} https://github.com/google/flatbuffers /tmp/flatbuffers \
+    && cmake -S /tmp/flatbuffers -B /tmp/flatbuffers/build -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DFLATBUFFERS_BUILD_TESTS=OFF \
+    && cmake --build /tmp/flatbuffers/build -j"$(nproc)" \
+    && cmake --install /tmp/flatbuffers/build \
+    && rm -rf /tmp/flatbuffers
+
+# TensorFlow Lite sources at the commit pinned in workspace.bzl. The schema
+# header is regenerated so it matches the flatbuffers version above.
+ARG TENSORFLOW_COMMIT=5bc9d26649cca274750ad3625bd93422617eed4b
+ARG TENSORFLOW_SHA256=fe592915c85d1a89c20f3dd89db0772ee22a0fbda78e39aa46a778d638a96abc
+
+RUN curl -fsSL -o /tmp/tf.tar.gz https://github.com/tensorflow/tensorflow/archive/${TENSORFLOW_COMMIT}.tar.gz \
+    && echo "${TENSORFLOW_SHA256}  /tmp/tf.tar.gz" | sha256sum -c - \
+    && mkdir /tensorflow \
+    && tar -xzf /tmp/tf.tar.gz -C /tensorflow --strip-components=1 \
+        tensorflow-${TENSORFLOW_COMMIT}/tensorflow/lite \
+        tensorflow-${TENSORFLOW_COMMIT}/tensorflow/compiler/mlir/lite \
+    && rm /tmp/tf.tar.gz \
+    && flatc --cpp --gen-object-api --gen-mutable --no-union-value-namespacing \
+        -o /tensorflow/tensorflow/lite/schema /tensorflow/tensorflow/lite/schema/schema.fbs
